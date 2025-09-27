@@ -21,40 +21,45 @@ function findComposeToolBar(){
 }
 
 function createAutoReplyButton() {
-    // Create wrapper div to hold button text and chevron
+    // Wrapper for left + right
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'inline-flex';
+    wrapper.style.alignItems = 'center';
+    wrapper.style.position = 'relative';
+    wrapper.style.marginRight = '6px';
+    wrapper.style.userSelect = 'none';
+    wrapper.selectedTone = 'Friendly'; // default tone
+
+    // Left side: main Auto-Reply button
     const button = document.createElement('div');
-    button.className = 'T-I J-J5-Ji aoO v7 T-I-atl L3';
-    button.style.display = 'inline-flex';
-    button.style.alignItems = 'center';
-    button.style.marginRight = '8px';
-    button.style.userSelect = 'none';
-    button.setAttribute('role', 'button');
-    button.setAttribute('data-tooltip', 'Auto-Reply');
+    button.textContent = 'Auto-Reply';
+    button.style.fontSize = '15px';
+    button.style.color= '#fff'
+    button.style.padding = '8px 18px';
+    button.style.cursor = 'pointer';
+    button.style.background = '#1B61D1';
+    button.style.borderTopLeftRadius = '50px';
+    button.style.borderBottomLeftRadius = '50px';
 
-    // Add text span
-    const textSpan = document.createElement('span');
-    textSpan.textContent = 'Auto-Reply';
-    textSpan.style.padding = '0 8px'; // space around text
-    button.appendChild(textSpan);
-
-    // Add divider
-    const divider = document.createElement('div');
-    divider.style.width = '1px';
-    divider.style.backgroundColor = '#ccc';
-    divider.style.height = '60%';
-    button.appendChild(divider);
-
-    // Add Gmail-style chevron
+    // Right side: chevron
     const chevron = document.createElement('div');
-    chevron.className = 'G-asx';
+    chevron.textContent = '▼';
+    chevron.style.color = '#fff'
+    chevron.style.fontSize = '15px';
+    chevron.style.padding = '8px 18px';
     chevron.style.cursor = 'pointer';
-    chevron.style.marginLeft = '8px'; // increased space
-    button.appendChild(chevron);
+    chevron.style.background = '#1B61D1';
+    chevron.style.borderLeft = '1px solid #ccc';
+    chevron.style.borderTopRightRadius = '50px';
+    chevron.style.borderBottomRightRadius = '50px';
 
-    // Dropdown menu (append to body)
+    wrapper.appendChild(button);
+    wrapper.appendChild(chevron);
+
+    // Dropdown menu appended to body
     const menu = document.createElement('div');
     menu.style.position = 'absolute';
-    menu.style.minWidth = '160px';
+    menu.style.minWidth = '140px';
     menu.style.background = '#fff';
     menu.style.border = '1px solid #ccc';
     menu.style.borderRadius = '4px';
@@ -62,24 +67,23 @@ function createAutoReplyButton() {
     menu.style.padding = '4px 0';
     menu.style.display = 'none';
     menu.style.zIndex = '9999';
+    document.body.appendChild(menu);
 
-    const options = ['Friendly', 'Formal', 'Casual'];
-    options.forEach(opt => {
+    // Dropdown options
+    ['Friendly', 'Professional', 'Casual','Agitated'].forEach(tone => {
         const item = document.createElement('div');
-        item.textContent = opt;
-        item.style.padding = '8px 12px';
+        item.textContent = tone;
+        item.style.padding = '6px 12px';
         item.style.cursor = 'pointer';
-        item.style.fontSize = '14px';
-        item.addEventListener('mouseover', () => item.style.background = '#f1f3f4');
-        item.addEventListener('mouseout', () => item.style.background = '');
-        item.addEventListener('click', () => {
-            console.log('Selected:', opt);
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            wrapper.selectedTone = tone;
             menu.style.display = 'none';
         });
         menu.appendChild(item);
     });
 
-    // Toggle menu on chevron click
+    // Chevron click toggles menu
     chevron.addEventListener('click', (e) => {
         e.stopPropagation();
         const rect = chevron.getBoundingClientRect();
@@ -88,14 +92,12 @@ function createAutoReplyButton() {
         menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
     });
 
-    // Hide menu on outside click
+    // Clicking outside closes menu
     document.addEventListener('click', () => {
         menu.style.display = 'none';
     });
 
-    document.body.appendChild(menu);
-
-    return button;
+    return { wrapper, button }; // ✅ always return both
 }
 
 
@@ -106,7 +108,7 @@ function getEmailContent(){
         '.h7',
         '.a3s.aiL',
         'gmail_quote',
-        '[role="presentation"]' 
+        '[role="presentation"]'
     ];
 
     for(const selector of selectors){
@@ -119,59 +121,59 @@ function getEmailContent(){
 }
 
 
-function injectButton(){
-     const existingButton = document.querySelector('.auto-reply');
-     if(existingButton) existingButton.remove();
+function injectButton() {
+    const existingButton = document.querySelector('.auto-reply-button');
+    if (existingButton) existingButton.remove();
 
-     const toolbar = findComposeToolBar();
-     if(!toolbar){
+    const toolbar = findComposeToolBar();
+    if (!toolbar) {
         console.log("Toolbar not found");
         return;
     }
     console.log("Toolbar Found!");
-    const button = createAutoReplyButton();
-    button.classList.add('auto-reply-button');
 
-    button.addEventListener('click',async()=>{
-        try{
-            button.innerHTML='Generating....';
-            button.disabled = true;
+    const { wrapper, button } = createAutoReplyButton();
+    wrapper.classList.add('auto-reply-button');
+
+    button.addEventListener('click', async () => {
+        try {
+            button.textContent = 'Generating...';
+            button.style.pointerEvents = 'none';
 
             const emailContent = getEmailContent();
-            const response = await fetch('http://localhost:8080/api/email/generate',{
+            if (!emailContent) {
+                console.error('No email content found');
+                return;
+            }
+
+            const response = await fetch('http://localhost:8080/api/email/generate', {
                 method: 'POST',
-                headers:{
-                    'Content-Type':'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    emailContent: emailContent,
-                    tone: "Manda"
+                    emailContent,
+                    tone: wrapper.selectedTone // ✅ use dropdown selection
                 })
             });
 
-            if(!response.ok){
-                throw new Error('API Request Failed');
-            }
+            if (!response.ok) throw new Error('API Request Failed');
 
             const generatedReply = await response.text();
             const composeBox = document.querySelector('[role="textbox"][g_editable="true"]');
-
-            if(composeBox){
+            if (composeBox) {
                 composeBox.focus();
-                document.execCommand('insertText',false,generatedReply);
-            }else{
+                document.execCommand('insertText', false, generatedReply);
+            } else {
                 console.error('Compose box was not found');
             }
-        }catch (error){
-            console.error(error);
-            console.error('failed to generate reply');
-        }finally{
-            button.innerHTML = 'Auto-Reply';
-            button.disabled = false;
+        } catch (error) {
+            console.error('Auto-reply error:', error);
+        } finally {
+            button.textContent = 'Auto-Reply';
+            button.style.pointerEvents = 'auto';
         }
     });
 
-    toolbar.insertBefore(button, toolbar.firstChild)
+    toolbar.insertBefore(wrapper, toolbar.firstChild);
 }
 const observer = new MutationObserver((mutations)=>{
     for(const mutation of mutations){
