@@ -67,7 +67,7 @@ public class EmailGeneratorService {
     private String buildPrompt(EmailRequest emailRequest) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("Generate one single professional email reply for the following email content. ")
-                .append("Do not generate multiple options. ")
+                .append("Do not generate multiple options. ") // for multiple options
                 .append("Do not include a subject line. ");
 
         if (emailRequest.getTone() != null && !emailRequest.getTone().isEmpty()) {
